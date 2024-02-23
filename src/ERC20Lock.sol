@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 error ELOCK__InsufficientTokenBalance();
 error ELOCK__InvalidTokenAddress();
 error ELOCK__InvalidChain();
+error ELOCK__SenderMustBeCaller();
 
 contract ERC20Lock {
     IERC20 public immutable i_tokenToLock;
@@ -18,7 +19,7 @@ contract ERC20Lock {
         uint256 ercAmount;
     }
 
-    mapping(address => mapping(bytes32 => Token)) public bridgeDetails;
+    mapping(address => mapping(bytes4 => Token)) public bridgeDetails;
     mapping(address => uint256) public balances;
 
     event tokenBridgeDone(
@@ -28,7 +29,12 @@ contract ERC20Lock {
         uint256 ercAmount
     );
 
-    modifier validateLock(address token, uint256 amount) {
+    modifier validateLock(
+        address token,
+        uint256 amount,
+        address sender
+    ) {
+        if (sender != msg.sender) revert ELOCK__SenderMustBeCaller();
         if (token == address(0)) revert ELOCK__InvalidTokenAddress();
         if (amount == 0) revert ELOCK__InsufficientTokenBalance();
         _;
@@ -40,7 +46,14 @@ contract ERC20Lock {
 
     function bridgeToken(
         Token memory newTransfer
-    ) public validateLock(newTransfer.destToken, newTransfer.ercAmount) {
+    )
+        public
+        validateLock(
+            newTransfer.destToken,
+            newTransfer.ercAmount,
+            newTransfer.sender
+        )
+    {
         string memory acceptedChain = "devnet";
 
         if (
@@ -57,11 +70,13 @@ contract ERC20Lock {
         // );
         balances[newTransfer.sender] += newTransfer.ercAmount;
 
-        bytes32 bridgeId = keccak256(
-            abi.encodePacked(
-                block.timestamp,
-                newTransfer.destToken,
-                newTransfer.sender
+        bytes4 bridgeId = bytes4(
+            keccak256(
+                abi.encodePacked(
+                    block.timestamp,
+                    newTransfer.destToken,
+                    newTransfer.sender
+                )
             )
         );
         bridgeDetails[msg.sender][bridgeId] = newTransfer;
