@@ -2,14 +2,13 @@
 
 pragma solidity ^0.8.19;
 
-import "forge-std/console.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 //Error
 error ELOCK__InsufficientTokenBalance();
 error ELOCK__InvalidTokenAddress();
 error ELOCK__InvalidChain();
 error ELOCK__SenderMustBeCaller();
+error ELOCK__BridgeFailed();
 
 contract ERC20Lock {
     IERC20 public immutable i_tokenToLock;
@@ -86,11 +85,13 @@ contract ERC20Lock {
         uint256 amountToSend = newTransfer.ercAmount;
         newTransfer.ercAmount = 0;
 
-        i_tokenToLock.transferFrom(
-            newTransfer.sender,
-            address(this),
-            amountToSend
-        );
+        if (
+            !i_tokenToLock.transferFrom(
+                newTransfer.sender,
+                address(this),
+                amountToSend
+            )
+        ) revert ELOCK__BridgeFailed();
         emit tokenBridgeDone(
             newTransfer.sender,
             newTransfer.destToken,
