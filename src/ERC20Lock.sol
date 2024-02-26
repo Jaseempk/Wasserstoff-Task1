@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.19;
 
+import "forge-std/console.sol";
+
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 //Error
 error ELOCK__InsufficientTokenBalance();
@@ -84,7 +86,11 @@ contract ERC20Lock {
         uint256 amountToSend = newTransfer.ercAmount;
         newTransfer.ercAmount = 0;
 
-        i_tokenToLock.transfer(address(this), amountToSend);
+        i_tokenToLock.transferFrom(
+            newTransfer.sender,
+            address(this),
+            amountToSend
+        );
         emit tokenBridgeDone(
             newTransfer.sender,
             newTransfer.destToken,
